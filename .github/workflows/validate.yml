@@ -1,0 +1,107 @@
+name: Validate
+
+# Build the package, install it, and run the unit tests on every supported
+# Ubuntu release, on each push to the main branch and every pull request.
+#
+# Scope: this catches build-dependency problems, runtime-dependency resolution
+# failures (e.g. a renamed package like the policykit-1 -> polkitd/pkexec
+# split), file-placement/permission regressions, and Python-version import
+# breakage across 22.04 (py3.10), 24.04 (py3.12) and 26.04 (py3.14).
+#
+# It does NOT do functional testing (mounting, the policy toggle, live device
+# updates): those need a running udisks2/D-Bus/udev on real hardware or a VM,
+# which a CI container does not provide. Functional changes still need a
+# manual check on a real system.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+# Validation only — no release creation — so least privilege.
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      # Don't let one release's failure cancel the others; we want to see all
+      # three results in one run.
+      fail-fast: false
+      matrix:
+        release: ['22.04', '24.04', '26.04']
+    container:
+      image: ubuntu:${{ matrix.release }}
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      TZ: UTC
+    steps:
+      # Runs before checkout: installs git (so actions/checkout uses git rather
+      # than the API tarball fallback) and everything needed to build the .deb.
+      # The package's Build-Depends are listed explicitly rather than via
+      # apt-get build-dep, which needs deb-src enabled and is flaky in minimal
+      # container images.
+      - name: Install build prerequisites
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            git \
+            build-essential \
+            fakeroot \
+            dpkg-dev \
+            debhelper \
+            dh-python \
+            pybuild-plugin-pyproject \
+            python3-all \
+            python3-pip \
+            python3-setuptools
+
+      - name: Check out the repository
+        uses: actions/checkout@v6
+
+      - name: Build the .deb
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p dist
+          cp ../bitcurator-mounter_*_all.deb dist/
+          echo "Built artifacts:"
+          ls -l dist/
+
+      # Installing with apt (not dpkg -i) resolves and pulls the runtime
+      # dependencies. If a dependency name is wrong for this release, this step
+      # fails here -- which is the whole point of the workflow.
+      - name: Install the .deb and its dependencies
+        run: |
+          apt-get install -y ./dist/bitcurator-mounter_*_all.deb
+
+      # Confirm the package placed its files at the expected paths with the
+      # expected permissions. The -x check on bc-mountpolicy guards the
+      # executable bit specifically.
+      - name: Verify installed files and permissions
+        run: |
+          set -e
+          test -x /usr/sbin/bc-mountpolicy
+          test -f /usr/share/bitcurator-mounter/readonly.rules
+          test -f /etc/udisks2/mount_options.conf
+          test -f /usr/share/polkit-1/actions/io.bitcurator.mountpolicy.policy
+          test -f /usr/share/applications/bc-mounter.desktop
+          test -f /etc/xdg/autostart/bc-policyapp.desktop
+          test -f /usr/share/pixmaps/mounter/harddisk-readonly.png
+          test -f /usr/share/pixmaps/mounter/harddisk-writeable.png
+          test -f /usr/bin/bc-mounter
+          test -f /usr/bin/bc-policyapp
+          echo "All expected files present."
+
+      # Import the INSTALLED package (run from /tmp so the local source tree is
+      # not on sys.path) to validate it imports cleanly on this release's
+      # Python, then run the unit tests against it.
+      - name: Import check and unit tests
+        run: |
+          apt-get install -y --no-install-recommends python3-pytest
+          cd /tmp
+          python3 -c "import bitcurator_mounter; print('version:', bitcurator_mounter.__version__)"
+          python3 -c "import bitcurator_mounter.udisks; print('udisks import OK')"
+          python3 -m pytest "$GITHUB_WORKSPACE/tests/" -q

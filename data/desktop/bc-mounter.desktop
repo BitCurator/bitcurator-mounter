@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=BitCurator Mounter
+Comment=Mount and unmount physical block devices
+Exec=bc-mounter
+Icon=drive-harddisk
+Terminal=false
+Categories=System;Utility;
+Keywords=mount;usb;device;forensics;
+StartupNotify=true

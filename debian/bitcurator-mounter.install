@@ -1,0 +1,13 @@
+# Maps repository data files to their system install locations.
+# Format: <source path>   <destination directory (no leading slash)>
+# pybuild installs the Python package and the bc-mounter / bc-policyapp
+# console scripts separately; only the non-Python assets are listed here.
+
+data/sbin/bc-mountpolicy                          usr/sbin/
+data/udev/readonly.rules                          usr/share/bitcurator-mounter/
+data/udisks2/mount_options.conf                   etc/udisks2/
+data/polkit/io.bitcurator.mountpolicy.policy      usr/share/polkit-1/actions/
+data/desktop/bc-mounter.desktop                   usr/share/applications/
+data/desktop/bc-policyapp.desktop                 etc/xdg/autostart/
+data/pixmaps/mounter/harddisk-readonly.png        usr/share/pixmaps/mounter/
+data/pixmaps/mounter/harddisk-writeable.png       usr/share/pixmaps/mounter/

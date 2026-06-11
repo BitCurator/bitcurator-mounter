@@ -1,0 +1,58 @@
+bitcurator-mounter (0.4.4~beta1) unstable; urgency=medium
+
+  * Fix build on Ubuntu 22.04, whose setuptools 59.6 cannot parse the
+    pyproject.toml [project] table (PEP 621 requires setuptools >= 61) and
+    produced an UNKNOWN-0.0.0 wheel. debian/rules now upgrades setuptools in
+    the build environment via pip, guarded to run only when the installed
+    setuptools is too old, so 24.04 and 26.04 (which already satisfy the
+    requirement and enforce PEP 668) are unaffected.
+  * debian/control: add python3-pip and ca-certificates to Build-Depends for
+    the setuptools upgrade. Note that the 22.04 build now requires network
+    access and no longer builds offline in a clean chroot.
+
+ -- BitCurator Consortium <bitcurator@gmail.com>  Thu, 11 Jun 2026 00:00:00 +0000
+
+bitcurator-mounter (0.4.3~beta1) unstable; urgency=medium
+
+  * policyapp.py: prevent re-entrant policy dialogs. Activating a menu item
+    while its confirmation dialog was already open spawned a second dialog;
+    a guard now blocks further activations until the open dialog is dismissed,
+    and both toggle items are greyed while a dialog is in progress.
+  * Correct placeholder tray-icon colours: read-only is now green (safe) and
+    writeable is red (danger), matching the risk the state represents.
+
+ -- BitCurator Consortium <bitcurator@gmail.com>  Wed, 10 Jun 2026 00:00:00 +0000
+
+bitcurator-mounter (0.4.2) unstable; urgency=medium
+
+  * udisks.py: fix device enumeration crash on startup. GLib.Variant property
+    values from GetManagedObjects were unwrapped with a nonexistent
+    get_python_value() method; use the correct GLib.Variant.unpack() instead.
+    Affected every bc-mounter launch (AttributeError before the window opened).
+
+ -- BitCurator Consortium <bitcurator@gmail.com>  Wed, 10 Jun 2026 00:00:00 +0000
+
+bitcurator-mounter (0.4.1) unstable; urgency=medium
+
+  * debian/control: depend on "polkitd | policykit-1" and "pkexec |
+    policykit-1" instead of the policykit-1 transitional package, which has
+    been removed on Ubuntu 26.04. The alternatives keep 22.04 (where both
+    come from policykit-1) building while satisfying 24.04 and 26.04 with the
+    split polkitd and pkexec packages.
+
+ -- BitCurator Consortium <bitcurator@gmail.com>  Wed, 10 Jun 2026 00:00:00 +0000
+
+bitcurator-mounter (0.4.0) unstable; urgency=medium
+
+  * Rewrite of the legacy bc_mounter.py and bc_policyapp.py scripts.
+  * Replace rbfstab fstab-rewriting with a udev/udisks2/polkit mechanism:
+    - block-layer write protection via blockdev --setro
+    - automount suppression (UDISKS_AUTO=0) to avoid the hotplug race
+    - journal-safe read-only mount options via udisks2 mount_options.conf
+    - BITCURATOR-SAVE label exemption for writeable persistent storage
+  * GTK3 + AyatanaAppIndicator3 + dasbus; supports Ubuntu 22.04/24.04/26.04
+    from a single codebase.
+  * New privileged helper bc-mountpolicy (invoked via pkexec) replaces
+    direct rbfstab invocation.
+
+ -- BitCurator Consortium <bitcurator@gmail.com>  Wed, 10 Jun 2026 00:00:00 +0000

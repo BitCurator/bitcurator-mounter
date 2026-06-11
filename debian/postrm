@@ -1,0 +1,33 @@
+#!/bin/sh
+# postrm for bitcurator-mounter
+set -e
+
+RULE=/etc/udev/rules.d/99-bitcurator-readonly.rules
+
+case "$1" in
+    purge|remove)
+        # If the read-only policy was active, the rule file lives in
+        # /etc/udev/rules.d/. Leaving it behind after the package is gone would
+        # silently write-protect USB devices with no app present to toggle it
+        # back. Remove it and reload udev so devices return to writeable.
+        if [ -e "$RULE" ]; then
+            rm -f "$RULE"
+            if command -v udevadm >/dev/null 2>&1; then
+                udevadm control --reload-rules || true
+                udevadm trigger --subsystem-match=block --action=change || true
+            fi
+        fi
+
+        if [ "$1" = "purge" ] && command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database -q || true
+        fi
+        ;;
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+    *)
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

@@ -1,0 +1,71 @@
+name: Release
+
+# Build the .deb and publish a GitHub release whenever a version tag is pushed.
+#
+# Release vs pre-release is decided from the tag name, following the SemVer
+# convention that a hyphen introduces a pre-release identifier:
+#   0.4.3        -> full release
+#   4.3.2-rc.1   -> pre-release (any hyphen: -rc, -alpha, -beta, ...)
+#
+# The .deb version comes from debian/changelog, not the tag, so keep the
+# changelog in sync when cutting a release (see the note in README / below).
+
+on:
+  push:
+    tags:
+      # Version tags start with a digit (e.g. 0.4.3, 4.3.2-rc.1). If you adopt
+      # a "v" prefix, change this to 'v[0-9]*'.
+      - '[0-9]*'
+
+# The release step needs write access to create the release and upload assets.
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            fakeroot \
+            debhelper \
+            dh-python \
+            pybuild-plugin-pyproject \
+            python3-all \
+            python3-pip \
+            python3-setuptools
+
+      - name: Build the .deb
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p dist
+          # dpkg-buildpackage writes artifacts to the parent directory.
+          cp ../bitcurator-mounter_*_all.deb dist/
+          echo "Built artifacts:"
+          ls -l dist/
+
+      - name: Determine release type from tag
+        id: reltype
+        run: |
+          if [[ "${{ github.ref_name }}" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "Tag '${{ github.ref_name }}' contains a hyphen -> pre-release."
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "Tag '${{ github.ref_name }}' -> full release."
+          fi
+
+      - name: Create the release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ github.ref_name }}
+          files: dist/*.deb
+          prerelease: ${{ steps.reltype.outputs.prerelease }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true

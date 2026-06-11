@@ -1,0 +1,80 @@
+#!/bin/bash
+#
+# bc-mountpolicy -- toggle the BitCurator read-only USB mount policy.
+#
+# Installs to /usr/sbin/bc-mountpolicy and is invoked by the mount-policy
+# indicator via pkexec (see io.bitcurator.mountpolicy.policy).
+#
+# Replaces the legacy rbfstab script. It does NOT touch /etc/fstab, does not
+# run on the hotplug path, and keeps no lock file. Its only job is to put the
+# read-only udev rule in place (or remove it) and re-trigger udev so the policy
+# applies to already-attached devices.
+#
+#   bc-mountpolicy install   activate read-only policy
+#   bc-mountpolicy remove     deactivate (writeable)
+#   bc-mountpolicy status     print "readonly" or "writeable" and exit
+#
+# Exit codes: 0 success, 1 usage error, 2 not root, 3 template missing.
+
+set -euo pipefail
+
+TEMPLATE="/usr/share/bitcurator-mounter/readonly.rules"
+RULE="/etc/udev/rules.d/99-bitcurator-readonly.rules"
+
+usage() {
+    cat <<EOF
+Usage: ${0##*/} {install|remove|status}
+
+  install   Activate the read-only USB mount policy.
+  remove    Deactivate the policy (USB devices writeable).
+  status    Print the current policy state.
+EOF
+}
+
+reload_udev() {
+    udevadm control --reload-rules
+    # Re-apply to already-attached block devices. Scoped to the block subsystem
+    # so we are not triggering unrelated devices.
+    udevadm trigger --subsystem-match=block --action=change
+}
+
+require_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "${0##*/}: must be run as root (use pkexec)." >&2
+        exit 2
+    fi
+}
+
+cmd="${1:-}"
+case "$cmd" in
+    install)
+        require_root
+        if [ ! -f "$TEMPLATE" ]; then
+            echo "${0##*/}: rule template not found at $TEMPLATE" >&2
+            exit 3
+        fi
+        install -m 0644 "$TEMPLATE" "$RULE"
+        reload_udev
+        echo "Read-only USB mount policy ACTIVE."
+        ;;
+    remove)
+        require_root
+        rm -f "$RULE"
+        reload_udev
+        echo "Read-only USB mount policy REMOVED (devices writeable)."
+        ;;
+    status)
+        if [ -f "$RULE" ]; then
+            echo "readonly"
+        else
+            echo "writeable"
+        fi
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 1
+        ;;
+esac

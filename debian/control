@@ -1,0 +1,43 @@
+Source: bitcurator-mounter
+Section: utils
+Priority: optional
+Maintainer: BitCurator Consortium <bitcurator@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+               dh-python,
+               pybuild-plugin-pyproject,
+               python3-all,
+               python3-pip,
+               python3-setuptools,
+               ca-certificates
+Standards-Version: 4.6.0
+Homepage: https://bitcurator.github.io/
+Rules-Requires-Root: no
+
+Package: bitcurator-mounter
+Architecture: all
+Depends: ${python3:Depends},
+         ${misc:Depends},
+         python3-dasbus,
+         python3-gi,
+         gir1.2-gtk-3.0,
+         gir1.2-ayatanaappindicator3-0.1,
+         gir1.2-glib-2.0,
+         polkitd | policykit-1,
+         pkexec | policykit-1,
+         udisks2,
+         util-linux
+Description: BitCurator USB mount-policy indicator and device mounter
+ GTK3 applications for the BitCurator environment that manage mounting of
+ physical block devices and a system-wide read-only USB mount policy.
+ .
+ The package provides:
+  * bc-mounter, a GUI for mounting and unmounting USB and other block
+    devices via udisks2, with live device updates;
+  * bc-policyapp, an Ayatana application indicator that toggles the
+    read-only USB mount policy;
+  * bc-mountpolicy, a privileged helper (invoked via pkexec) that activates
+    or deactivates the policy by installing a udev rule which write-protects
+    USB devices at the block layer.
+ .
+ The read-only policy is a convenience to prevent inadvertent writes and is
+ not a substitute for a hardware write blocker.

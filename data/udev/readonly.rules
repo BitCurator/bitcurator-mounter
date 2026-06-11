@@ -1,0 +1,39 @@
+# BitCurator read-only USB mount policy
+#
+# Template stored at /usr/share/bitcurator-mounter/readonly.rules
+# Activated by `bc-mountpolicy install`, which copies it to
+#   /etc/udev/rules.d/99-bitcurator-readonly.rules
+# and removed by `bc-mountpolicy remove`. The PRESENCE of the file at the
+# rules.d path is what indicates the read-only policy is active.
+#
+# Behavior when active:
+#   - USB block partitions (sd?* with ID_BUS=usb) are set read-only at the
+#     block layer via `blockdev --setro`. This is the protection: the block
+#     device itself rejects writes, including journal/log recovery, regardless
+#     of how it is later mounted.
+#   - Automounting is disabled for these devices (UDISKS_AUTO=0) so nothing
+#     races the --setro call. The user mounts explicitly via the mounter app.
+#
+# Exemption:
+#   - A partition labelled BITCURATOR-SAVE is left writeable and automountable,
+#     to support user-created USB-persistent installs with a writeable save
+#     partition. This is the ONLY label that grants writeability under the
+#     read-only policy. It must be documented prominently: a device labelled
+#     BITCURATOR-SAVE will be writeable even when the policy is read-only.
+#
+# Only block partitions are matched (sd?*), not whole disks, because --setro
+# does not reliably propagate from a disk to its partitions.
+
+ACTION!="add|change", GOTO="bitcurator_ro_end"
+SUBSYSTEM!="block", GOTO="bitcurator_ro_end"
+KERNEL!="sd?*", GOTO="bitcurator_ro_end"
+ENV{ID_BUS}!="usb", GOTO="bitcurator_ro_end"
+
+# Exemption: leave the designated writeable save partition alone.
+ENV{ID_FS_LABEL}=="BITCURATOR-SAVE", GOTO="bitcurator_ro_end"
+
+# Block-layer write protection + suppress automount.
+ENV{UDISKS_AUTO}="0"
+RUN+="/sbin/blockdev --setro %N"
+
+LABEL="bitcurator_ro_end"

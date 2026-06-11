@@ -1,0 +1,28 @@
+#!/bin/sh
+# postinst for bitcurator-mounter
+set -e
+
+case "$1" in
+    configure)
+        # Reload udev so the rule template location is recognized. The policy
+        # itself is NOT activated here -- activation installs the rule into
+        # /etc/udev/rules.d/ via bc-mountpolicy, driven by the user. Default
+        # state is writeable.
+        if command -v udevadm >/dev/null 2>&1; then
+            udevadm control --reload-rules || true
+        fi
+
+        # Refresh desktop database for the new .desktop launcher.
+        if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database -q || true
+        fi
+        ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+    *)
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

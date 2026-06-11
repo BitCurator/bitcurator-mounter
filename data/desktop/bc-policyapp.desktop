@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=BitCurator Mount Policy
+Comment=Indicator for controlling system-wide USB mount policy
+Exec=bc-policyapp
+Icon=drive-harddisk
+Terminal=false
+Categories=System;Utility;
+X-GNOME-Autostart-enabled=true
+StartupNotify=false

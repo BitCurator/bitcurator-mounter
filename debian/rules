@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+export PYBUILD_NAME=bitcurator-mounter
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+# Ubuntu 22.04 ships setuptools 59.6, which cannot parse the pyproject.toml
+# [project] table (PEP 621 needs setuptools >= 61). pybuild builds
+# --no-isolation against the system setuptools, so upgrade it first — but ONLY
+# where it's too old, since 24.04/26.04 already satisfy it and their PEP 668
+# pip would reject a system-wide install. Requires network access at build time.
+override_dh_auto_configure:
+	python3 -c 'import setuptools; raise SystemExit(0 if int(setuptools.__version__.split(".")[0]) >= 61 else 1)' \
+	  || python3 -m pip install --upgrade 'setuptools>=61' wheel
+	dh_auto_configure
+
+# bc-mountpolicy must be executable. dh_fixperms would normally handle 0755
+# for files under bin/sbin, but the source ships it under data/sbin, so make
+# the intent explicit after install.
+override_dh_fixperms:
+	dh_fixperms
+	chmod 0755 debian/bitcurator-mounter/usr/sbin/bc-mountpolicy

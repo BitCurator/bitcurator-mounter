@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bitcurator-mounter"
+version = "0.4.3"
+description = "BitCurator mount-policy indicator and device mounter GUI"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Kam Woods" },
+]
+requires-python = ">=3.10"
+# Runtime deps that are pip-installable. The big ones (PyGObject, GTK 3,
+# AyatanaAppIndicator3) come from system packages — see README.
+dependencies = [
+    "dasbus >= 1.6",
+]
+
+[project.scripts]
+bc-mounter = "bitcurator_mounter.mounter:main"
+bc-policyapp = "bitcurator_mounter.policyapp:main"
+
+[tool.setuptools.packages.find]
+include = ["bitcurator_mounter*"]
+
+# NOTE on data files (udev rule, polkit action, desktop files, udisks2 config,
+# bc-mountpolicy helper): these are NOT installed via setuptools. The Debian
+# package places them at absolute system paths with correct modes via
+# debian/bitcurator-mounter.install and debian/rules. Keeping them out of the
+# build backend avoids a collision between pybuild's prefix install and the
+# .deb's absolute-path install. For a non-Debian/manual install, copy the
+# files under data/ to the destinations documented in README.md.
